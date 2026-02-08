@@ -10,13 +10,13 @@ import * as schema from './schema'
 const isDevelopment = process.env.NODE_ENV === 'development'
 const isTest = process.env.NODE_ENV === 'test'
 
-if (
-  !process.env.DATABASE_URL &&
-  !process.env.DATABASE_RESTRICTED_URL &&
-  !isTest
-) {
-  throw new Error(
-    'DATABASE_URL or DATABASE_RESTRICTED_URL environment variable is not set'
+const isDatabaseConfigured = !!(
+  process.env.DATABASE_URL || process.env.DATABASE_RESTRICTED_URL
+)
+
+if (!isDatabaseConfigured && !isTest) {
+  console.warn(
+    '[DB] DATABASE_URL or DATABASE_RESTRICTED_URL not set - running in ephemeral mode (no chat history)'
   )
 }
 
@@ -25,13 +25,9 @@ if (
 const connectionString =
   process.env.DATABASE_RESTRICTED_URL ?? // Prefer restricted user
   process.env.DATABASE_URL ??
-  (isTest ? 'postgres://user:pass@localhost:5432/testdb' : undefined)
-
-if (!connectionString) {
-  throw new Error(
-    'DATABASE_URL or DATABASE_RESTRICTED_URL environment variable is not set'
-  )
-}
+  (isTest
+    ? 'postgres://user:pass@localhost:5432/testdb'
+    : 'postgres://dummy:dummy@localhost:5432/dummy')
 
 // Log which connection is being used (for debugging)
 if (isDevelopment) {

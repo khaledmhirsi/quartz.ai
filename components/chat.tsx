@@ -104,7 +104,7 @@ export function Chat({
             trigger, // Use AI SDK's default trigger value directly
             chatId: chatId,
             messageId,
-            ...(isGuest ? { messages } : {}),
+            messages, // Always send messages for ephemeral mode support
             message:
               trigger === 'regenerate-message' &&
               messageToRegenerate?.role === 'user'

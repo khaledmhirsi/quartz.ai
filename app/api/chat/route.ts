@@ -17,6 +17,11 @@ import { perfLog, perfTime } from '@/lib/utils/perf-logging'
 import { resetAllCounters } from '@/lib/utils/perf-tracking'
 import { isProviderEnabled } from '@/lib/utils/registry'
 
+// Check if database is configured
+const isDatabaseConfigured = !!(
+  process.env.DATABASE_URL || process.env.DATABASE_RESTRICTED_URL
+)
+
 export const maxDuration = 300
 
 export async function POST(req: Request) {
@@ -143,9 +148,19 @@ export async function POST(req: Request) {
       `createChatStreamResponse - Start: model=${selectedModel.providerId}:${selectedModel.id}, searchMode=${searchMode}, modelType=${modelType}`
     )
 
-    const response = isGuest
+    // Use ephemeral mode if guest OR if database is not configured
+    const useEphemeralMode = isGuest || !isDatabaseConfigured
+
+    // For ephemeral mode, we need messages array
+    // If messages array is not provided (non-guest mode without DB), construct it from the message
+    let ephemeralMessages = Array.isArray(messages) ? messages : []
+    if (useEphemeralMode && ephemeralMessages.length === 0 && message) {
+      ephemeralMessages = [message]
+    }
+
+    const response = useEphemeralMode
       ? await createEphemeralChatStreamResponse({
-          messages: Array.isArray(messages) ? messages : [],
+          messages: ephemeralMessages,
           model: selectedModel,
           abortSignal,
           searchMode,
@@ -167,44 +182,46 @@ export async function POST(req: Request) {
 
     perfTime('createChatStreamResponse resolved', streamStart)
 
-    // Track analytics event (non-blocking)
-    // Calculate conversation turn by loading chat history
-    ;(async () => {
-      try {
-        let conversationTurn = 1 // Default for new chats
+    // Track analytics event (non-blocking) - only if database is configured
+    if (isDatabaseConfigured) {
+      // Calculate conversation turn by loading chat history
+      ;(async () => {
+        try {
+          let conversationTurn = 1 // Default for new chats
 
-        // For existing chats, load history and calculate turn number
-        if (!isNewChat && !isGuest) {
-          const chat = await loadChat(chatId, userId)
-          if (chat?.messages) {
-            // Add 1 to account for the current message being sent
-            conversationTurn = calculateConversationTurn(chat.messages) + 1
+          // For existing chats, load history and calculate turn number
+          if (!isNewChat && !isGuest) {
+            const chat = await loadChat(chatId, userId)
+            if (chat?.messages) {
+              // Add 1 to account for the current message being sent
+              conversationTurn = calculateConversationTurn(chat.messages) + 1
+            }
           }
-        }
 
-        if (!isGuest && userId) {
-          await trackChatEvent({
-            searchMode,
-            modelType: modelTypeCookie === 'quality' ? 'quality' : 'speed',
-            conversationTurn,
-            isNewChat: isNewChat ?? false,
-            trigger:
-              (trigger as 'submit-message' | 'regenerate-message') ??
-              'submit-message',
-            chatId,
-            userId,
-            modelId: selectedModel.id
-          })
+          if (!isGuest && userId) {
+            await trackChatEvent({
+              searchMode,
+              modelType: modelTypeCookie === 'quality' ? 'quality' : 'speed',
+              conversationTurn,
+              isNewChat: isNewChat ?? false,
+              trigger:
+                (trigger as 'submit-message' | 'regenerate-message') ??
+                'submit-message',
+              chatId,
+              userId,
+              modelId: selectedModel.id
+            })
+          }
+        } catch (error) {
+          // Log error but don't throw - analytics should never break the app
+          console.error('Analytics tracking failed:', error)
         }
-      } catch (error) {
-        // Log error but don't throw - analytics should never break the app
-        console.error('Analytics tracking failed:', error)
-      }
-    })()
+      })()
+    }
 
     // Invalidate the cache for this specific chat after creating the response
-    // This ensures the next load will get fresh data
-    if (chatId && !isGuest) {
+    // This ensures the next load will get fresh data - only if database is configured
+    if (chatId && !isGuest && isDatabaseConfigured) {
       revalidateTag(`chat-${chatId}`, 'max')
     }
 
