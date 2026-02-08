@@ -7,8 +7,8 @@ import { SearchMode } from '@/lib/types/search'
 import { isProviderEnabled } from '@/lib/utils/registry'
 
 const DEFAULT_MODEL: Model = {
-  id: 'gemini-3.0-flash',
-  name: 'Gemini 3.0 Flash',
+  id: 'gemini-3-flash-preview',
+  name: 'Gemini 3 Flash',
   provider: 'Google',
   providerId: 'google'
 }
