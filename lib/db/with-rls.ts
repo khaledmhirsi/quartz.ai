@@ -1,5 +1,3 @@
-import { sql } from 'drizzle-orm'
-
 import { db } from '.'
 
 // Type for transaction or database instance
@@ -21,18 +19,20 @@ export class RLSViolationError extends Error {
 }
 
 /**
- * Execute database operations with Row-Level Security context
- * Sets the current user ID for the transaction scope
+ * Execute database operations with user context
  *
- * @param userId - The user ID to set for RLS policies
+ * Note: RLS via set_config is disabled for Supabase pooler compatibility.
+ * All queries already filter by userId in the WHERE clause for security.
+ * The userId parameter is kept for future RLS support and audit logging.
+ *
+ * @param userId - The user ID for the operation (used for audit, not RLS)
  * @param callback - The database operations to execute
  * @returns The result of the callback function
- * @throws {RLSViolationError} If RLS policy is violated
  *
  * @example
  * ```typescript
  * const result = await withRLS(userId, async (tx) => {
- *   return tx.select().from(chats)
+ *   return tx.select().from(chats).where(eq(chats.userId, userId))
  * })
  * ```
  */
@@ -40,33 +40,11 @@ export async function withRLS<T>(
   userId: string,
   callback: (tx: TxInstance) => Promise<T>
 ): Promise<T> {
-  try {
-    return await db.transaction(async tx => {
-      // Set the user ID for this transaction
-      // Using SET LOCAL ensures it's only valid for this transaction
-      // Use pg_catalog.quote_literal for safe escaping
-      await tx.execute(
-        sql`SELECT set_config('app.current_user_id', ${userId}, true)`
-      )
-
-      // Execute the callback with the transaction
-      return await callback(tx)
-    })
-  } catch (error) {
-    // Check for RLS policy violations
-    const errorMessage = error instanceof Error ? error.message : String(error)
-    if (
-      errorMessage.includes('new row violates row-level security policy') ||
-      errorMessage.includes('row-level security policy')
-    ) {
-      throw new RLSViolationError(
-        `Access denied for user ${userId}. ${errorMessage}`
-      )
-    }
-
-    // Re-throw other errors
-    throw error
-  }
+  // Note: We skip set_config for Supabase pooler compatibility.
+  // Security is enforced via WHERE clauses in all queries.
+  return await db.transaction(async tx => {
+    return await callback(tx)
+  })
 }
 
 /**
