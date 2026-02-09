@@ -2,19 +2,12 @@
 
 import Link from 'next/link'
 
-import {
-  Link2,
-  LogIn,
-  Palette,
-  Settings2 // Or EllipsisVertical, etc.
-} from 'lucide-react'
+import { Link2, Palette, Settings2, UserPlus } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuSub,
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
@@ -26,40 +19,49 @@ import { ThemeMenuItems } from './theme-menu-items'
 
 export default function GuestMenu() {
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className="h-6 w-6">
-          <Settings2 className="h-4 w-4" /> {/* Choose an icon */}
-          <span className="sr-only">Open menu</span>
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent className="w-56" align="end" forceMount>
-        <DropdownMenuItem asChild>
-          <Link href="/auth/login">
-            <LogIn className="mr-2 h-4 w-4" />
-            <span>Sign In</span>
-          </Link>
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuSub>
-          <DropdownMenuSubTrigger>
-            <Palette className="mr-2 h-4 w-4" />
-            <span>Theme</span>
-          </DropdownMenuSubTrigger>
-          <DropdownMenuSubContent>
-            <ThemeMenuItems />
-          </DropdownMenuSubContent>
-        </DropdownMenuSub>
-        <DropdownMenuSub>
-          <DropdownMenuSubTrigger>
-            <Link2 className="mr-2 h-4 w-4" />
-            <span>Links</span>
-          </DropdownMenuSubTrigger>
-          <DropdownMenuSubContent>
-            <ExternalLinkItems />
-          </DropdownMenuSubContent>
-        </DropdownMenuSub>
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <div className="flex items-center gap-2">
+      {/* Prominent Sign In Button */}
+      <Button asChild size="default" className="font-medium px-5">
+        <Link href="/auth/login">Sign In</Link>
+      </Button>
+
+      {/* Sign Up Button */}
+      <Button asChild variant="outline" size="default" className="font-medium">
+        <Link href="/auth/sign-up">
+          <UserPlus className="mr-2 h-4 w-4" />
+          Sign Up
+        </Link>
+      </Button>
+
+      {/* Settings Dropdown (Theme & Links) */}
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="icon" className="h-8 w-8">
+            <Settings2 className="h-4 w-4" />
+            <span className="sr-only">Settings</span>
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent className="w-48" align="end" forceMount>
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger>
+              <Palette className="mr-2 h-4 w-4" />
+              <span>Theme</span>
+            </DropdownMenuSubTrigger>
+            <DropdownMenuSubContent>
+              <ThemeMenuItems />
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger>
+              <Link2 className="mr-2 h-4 w-4" />
+              <span>Links</span>
+            </DropdownMenuSubTrigger>
+            <DropdownMenuSubContent>
+              <ExternalLinkItems />
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
   )
 }
