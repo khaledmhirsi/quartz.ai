@@ -1,6 +1,6 @@
 # Docker Guide
 
-This guide covers running Morphic with Docker, including development setup, prebuilt images, and deployment options.
+This guide covers running Quartz with Docker, including development setup, prebuilt images, and deployment options.
 
 ## Quick Start with Docker Compose
 
@@ -13,7 +13,7 @@ cp .env.local.example .env.local
 Edit `.env.local` and set the required variables:
 
 ```bash
-DATABASE_URL=postgresql://morphic:morphic@postgres:5432/morphic
+DATABASE_URL=postgresql://quartz:quartz@postgres:5432/quartz
 OPENAI_API_KEY=your_openai_key
 TAVILY_API_KEY=your_tavily_key
 BRAVE_SEARCH_API_KEY=your_brave_key
@@ -24,9 +24,9 @@ BRAVE_SEARCH_API_KEY=your_brave_key
 **Optional**: Customize PostgreSQL credentials by setting environment variables in `.env.local`:
 
 ```bash
-POSTGRES_USER=morphic      # Default: morphic
-POSTGRES_PASSWORD=morphic  # Default: morphic
-POSTGRES_DB=morphic        # Default: morphic
+POSTGRES_USER=quartz      # Default: quartz
+POSTGRES_PASSWORD=quartz  # Default: quartz
+POSTGRES_DB=quartz        # Default: quartz
 POSTGRES_PORT=5432         # Default: 5432
 ```
 
@@ -42,7 +42,7 @@ The application will:
 - Start Redis for SearXNG search caching
 - Wait for the database to be ready
 - Run database migrations automatically
-- Start the Morphic application
+- Start the Quartz application
 - Start SearXNG (optional search provider)
 
 3. Visit http://localhost:3000 in your browser.
@@ -58,18 +58,18 @@ docker compose down -v  # This will delete all data
 Prebuilt Docker images are automatically built and published to GitHub Container Registry:
 
 ```bash
-docker pull ghcr.io/miurla/morphic:latest
+docker pull ghcr.io/quartz-ai/quartz:latest
 ```
 
 You can use it with docker-compose by setting the image in your `docker-compose.yaml`:
 
 ```yaml
 services:
-  morphic:
-    image: ghcr.io/miurla/morphic:latest
+  quartz:
+    image: ghcr.io/quartz-ai/quartz:latest
     env_file: .env.local
     environment:
-      DATABASE_URL: postgresql://morphic:morphic@postgres:5432/morphic
+      DATABASE_URL: postgresql://quartz:quartz@postgres:5432/quartz
       DATABASE_SSL_DISABLED: 'true'
       ENABLE_AUTH: 'false'
     ports:
@@ -98,8 +98,8 @@ docker compose down
 docker compose down -v
 
 # View logs
-docker compose logs -f morphic
+docker compose logs -f quartz
 
 # Rebuild the image
-docker compose build morphic
+docker compose build quartz
 ```

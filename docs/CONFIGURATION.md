@@ -1,6 +1,6 @@
 # Configuration Guide
 
-This guide covers the optional features and their configuration in Morphic.
+This guide covers the optional features and their configuration in Quartz.
 
 ## Table of Contents
 
@@ -13,14 +13,14 @@ This guide covers the optional features and their configuration in Morphic.
 
 ## Database
 
-Morphic uses PostgreSQL for chat history storage. A database is **optional** for basic usage — without it, Morphic runs in a stateless mode where chat history is not persisted.
+Quartz uses PostgreSQL for chat history storage. A database is **optional** for basic usage — without it, Quartz runs in a stateless mode where chat history is not persisted.
 
 ### Setting Up PostgreSQL
 
 Set the connection string in `.env.local`:
 
 ```bash
-DATABASE_URL=postgresql://user:password@localhost:5432/morphic
+DATABASE_URL=postgresql://user:password@localhost:5432/quartz
 ```
 
 Any PostgreSQL provider works: [Neon](https://neon.tech/), [Supabase](https://supabase.com/), or a local PostgreSQL instance.
@@ -37,7 +37,7 @@ This command applies all migrations from the `drizzle/` directory.
 
 ## Authentication
 
-By default, Morphic runs in **anonymous mode** with authentication disabled (`ENABLE_AUTH=false` in `.env.local.example`). This is ideal for personal use where all users share a single anonymous user ID.
+By default, Quartz runs in **anonymous mode** with authentication disabled (`ENABLE_AUTH=false` in `.env.local.example`). This is ideal for personal use where all users share a single anonymous user ID.
 
 ### Anonymous Mode (Default)
 
@@ -68,11 +68,11 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=[YOUR_SUPABASE_ANON_KEY]
    - **Project URL**: Settings → API → Project URL
    - **Anon Key**: Settings → API → Project API keys → anon/public
 
-With authentication enabled, users will need to sign up/login to use Morphic, and each user will have isolated chat history.
+With authentication enabled, users will need to sign up/login to use Quartz, and each user will have isolated chat history.
 
 ## Guest Mode
 
-Guest mode allows users to try Morphic without creating an account. Guest sessions are ephemeral - no chat history is stored in the database.
+Guest mode allows users to try Quartz without creating an account. Guest sessions are ephemeral - no chat history is stored in the database.
 
 ### Enabling Guest Mode
 
@@ -111,7 +111,7 @@ UPSTASH_REDIS_REST_URL=[YOUR_UPSTASH_URL]
 UPSTASH_REDIS_REST_TOKEN=[YOUR_UPSTASH_TOKEN]
 ```
 
-**Note**: Rate limiting only applies when `MORPHIC_CLOUD_DEPLOYMENT=true`. For self-hosted deployments, rate limiting is disabled by default.
+**Note**: Rate limiting only applies when `QUARTZ_CLOUD_DEPLOYMENT=true`. For self-hosted deployments, rate limiting is disabled by default.
 
 ### Recommended Setup
 
@@ -278,7 +278,7 @@ Model configuration files use the following structure:
 }
 ```
 
-Define all four combinations to control which model runs for every search mode (`quick`, `adaptive`) and preference (`speed`, `quality`). For example, you can pair `quick/speed` with `gemini-2.5-flash-lite` while keeping `adaptive/quality` on GPT-5. The default config ships with OpenAI models for every slot so Morphic works out-of-the-box.
+Define all four combinations to control which model runs for every search mode (`quick`, `adaptive`) and preference (`speed`, `quality`). For example, you can pair `quick/speed` with `gemini-2.5-flash-lite` while keeping `adaptive/quality` on GPT-5. The default config ships with OpenAI models for every slot so Quartz works out-of-the-box.
 
 ### Supported Providers
 
@@ -331,7 +331,7 @@ Then update your `config/models/*.json` files to use Ollama models:
 
 **Important Notes:**
 
-- **Tools Capability**: Morphic requires models to support the `tools` capability for function calling. On server startup, Morphic validates configured models and logs the results. Note that even if a model reports tools support, actual tool calling performance depends on the model's capabilities and is not guaranteed.
+- **Tools Capability**: Quartz requires models to support the `tools` capability for function calling. On server startup, Quartz validates configured models and logs the results. Note that even if a model reports tools support, actual tool calling performance depends on the model's capabilities and is not guaranteed.
 
 - **Validation Logs**: Check server logs on startup to verify your configured models:
   ```
