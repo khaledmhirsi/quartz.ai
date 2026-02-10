@@ -11,27 +11,45 @@ import {
 } from '@/lib/types/task';
 import {
   calculatePriorityScore,
+  createHistoryEntry,
   createTaskFromInterview,
   generateSampleTasks,
   sortTasksByPriority,
 } from '@/lib/utils/task-utils';
 
 import { AgentChatPanel } from '@/components/tasks/agent-chat-panel';
+import {
+  AuthGuard,
+  AuthProvider,
+  DemoLogin,
+  useAuth,
+} from '@/components/tasks/auth-guard';
 import { GoldenTimeModal } from '@/components/tasks/golden-time-modal';
 import { TaskBoard } from '@/components/tasks/task-board';
+import { TaskDetailModal } from '@/components/tasks/task-detail-modal';
 import { TaskHeader } from '@/components/tasks/task-header';
 import { TaskInterviewModal } from '@/components/tasks/task-interview-modal';
 import { TaskList } from '@/components/tasks/task-list';
 
-export default function TasksPage() {
+function TasksContent() {
+  const { user } = useAuth();
   const [view, setView] = React.useState<'board' | 'list'>('board');
-  const [tasks, setTasks] = React.useState<Task[]>(() => generateSampleTasks());
+  const [tasks, setTasks] = React.useState<Task[]>(() =>
+    generateSampleTasks(user?.id || 'demo-user')
+  );
   const [interviewModalOpen, setInterviewModalOpen] = React.useState(false);
   const [goldenTimeModalOpen, setGoldenTimeModalOpen] = React.useState(false);
   const [chatPanelOpen, setChatPanelOpen] = React.useState(false);
-  const [selectedTaskForChat, setSelectedTaskForChat] = React.useState<Task | undefined>();
-  const [selectedAgent, setSelectedAgent] = React.useState<TaskAgent | undefined>();
+  const [selectedTaskForChat, setSelectedTaskForChat] = React.useState<
+    Task | undefined
+  >();
+  const [selectedAgent, setSelectedAgent] = React.useState<
+    TaskAgent | undefined
+  >();
   const [addToColumnId, setAddToColumnId] = React.useState<string>('todo');
+  const [detailModalOpen, setDetailModalOpen] = React.useState(false);
+  const [selectedTaskForDetail, setSelectedTaskForDetail] =
+    React.useState<Task | null>(null);
 
   // Organize tasks into columns for board view
   const columns: TaskColumn[] = React.useMemo(() => {
@@ -58,12 +76,22 @@ export default function TasksPage() {
   };
 
   const handleCreateTask = (data: TaskInterviewData) => {
-    const newTask = createTaskFromInterview(data, addToColumnId);
+    const newTask = createTaskFromInterview(
+      data,
+      addToColumnId,
+      user?.id || 'demo-user'
+    );
     const taskWithId: Task = {
       ...newTask,
       id: `task-${Date.now()}`,
     };
     setTasks((prev) => [...prev, taskWithId]);
+
+    // If task has a suggested title, open detail modal to show the suggestion
+    if (taskWithId.suggestedTitle) {
+      setSelectedTaskForDetail(taskWithId);
+      setDetailModalOpen(true);
+    }
   };
 
   const handleTaskStatusChange = (taskId: string, status: TaskStatus) => {
@@ -84,6 +112,15 @@ export default function TasksPage() {
             columnId: columnMap[status],
             completedAt: status === 'done' ? new Date() : undefined,
             updatedAt: new Date(),
+            history: [
+              ...(t.history || []),
+              createHistoryEntry(
+                'status_changed',
+                `Status changed to ${status}`,
+                t.status,
+                status
+              ),
+            ],
           };
         }
         return t;
@@ -126,8 +163,8 @@ export default function TasksPage() {
   };
 
   const handleTaskEdit = (task: Task) => {
-    // TODO: Implement edit modal
-    console.log('Edit task:', task);
+    setSelectedTaskForDetail(task);
+    setDetailModalOpen(true);
   };
 
   const handleTaskDelete = (taskId: string) => {
@@ -137,6 +174,9 @@ export default function TasksPage() {
   const handleStartTask = (task: Task) => {
     // Update task status to in progress
     handleTaskStatusChange(task.id, 'in_progress');
+    // Open the detail modal to show the agent
+    setSelectedTaskForDetail(task);
+    setDetailModalOpen(true);
   };
 
   const handleAgentChat = (task: Task) => {
@@ -160,6 +200,16 @@ export default function TasksPage() {
         return t;
       })
     );
+  };
+
+  const handleTaskUpdate = (updatedTask: Task) => {
+    setTasks((prev) =>
+      prev.map((t) => (t.id === updatedTask.id ? updatedTask : t))
+    );
+    // Update the selected task for detail modal if it's the same task
+    if (selectedTaskForDetail?.id === updatedTask.id) {
+      setSelectedTaskForDetail(updatedTask);
+    }
   };
 
   const handleSearch = (query: string) => {
@@ -222,6 +272,14 @@ export default function TasksPage() {
         onCompleteStep={handleCompleteStep}
       />
 
+      <TaskDetailModal
+        task={selectedTaskForDetail}
+        open={detailModalOpen}
+        onOpenChange={setDetailModalOpen}
+        onTaskUpdate={handleTaskUpdate}
+        onStartTask={handleStartTask}
+      />
+
       {/* Agent Chat Panel */}
       <AgentChatPanel
         open={chatPanelOpen}
@@ -230,5 +288,15 @@ export default function TasksPage() {
         agent={selectedAgent}
       />
     </div>
+  );
+}
+
+export default function TasksPage() {
+  return (
+    <AuthProvider>
+      <AuthGuard fallback={<DemoLogin />}>
+        <TasksContent />
+      </AuthGuard>
+    </AuthProvider>
   );
 }

@@ -5,6 +5,7 @@ export type ImportanceLevel = 'critical' | 'high' | 'medium' | 'low';
 export type EnergyLevel = 'high' | 'medium' | 'low';
 export type TaskStatus = 'planned' | 'in_progress' | 'blocked' | 'waiting_customer' | 'done';
 export type TaskCategory = 'internal' | 'customer' | 'needs_action';
+export type AgentType = 'research' | 'design' | 'writing' | 'coding' | 'planning' | 'general' | 'task-specific';
 
 export interface SubStep {
   id: string;
@@ -13,10 +14,65 @@ export interface SubStep {
   estimatedMinutes?: number;
 }
 
+// Document attached to a task
+export interface TaskDocument {
+  id: string;
+  name: string;
+  type: string; // 'pdf' | 'docx' | 'txt' | 'md' | etc.
+  size: number;
+  url: string;
+  uploadedAt: Date;
+  summary?: string; // AI-generated summary
+  extractedInsights?: string[]; // AI-extracted key points
+  isProcessed: boolean;
+}
+
+// Task history entry for tracking changes
+export interface TaskHistoryEntry {
+  id: string;
+  timestamp: Date;
+  action: 'created' | 'updated' | 'status_changed' | 'agent_message' | 'document_added' | 'renamed';
+  description: string;
+  previousValue?: string;
+  newValue?: string;
+  userId?: string;
+  userName?: string;
+}
+
+// Agent message in task chat
+export interface AgentMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: Date;
+  attachments?: string[];
+  suggestions?: string[]; // AI suggested actions
+}
+
+// Task-specific agent with full context
+export interface TaskSpecificAgent {
+  id: string;
+  taskId: string;
+  name: string;
+  type: AgentType;
+  avatar: string;
+  context: {
+    taskTitle: string;
+    taskDescription?: string;
+    deadline?: Date;
+    priority: ImportanceLevel;
+    energyLevel: EnergyLevel;
+    documents: TaskDocument[];
+    previousMessages: AgentMessage[];
+  };
+  capabilities: string[];
+  createdAt: Date;
+}
+
 export interface TaskAgent {
   id: string;
   name: string;
-  type: 'research' | 'design' | 'writing' | 'coding' | 'planning' | 'general';
+  type: AgentType;
   avatar: string;
   description: string;
   capabilities: string[];
@@ -25,6 +81,9 @@ export interface TaskAgent {
 export interface Task {
   id: string;
   title: string;
+  originalTitle?: string; // Store original if AI renamed
+  suggestedTitle?: string; // AI suggestion for renaming
+  titleAccepted?: boolean; // Whether user accepted AI rename
   description?: string;
   
   // Smart Interview Fields
@@ -53,8 +112,20 @@ export interface Task {
   // Substeps
   subSteps: SubStep[];
   
-  // Agent Assignment
+  // Agent Assignment (general agent)
   assignedAgent?: TaskAgent;
+  
+  // Task-specific agent
+  taskAgent?: TaskSpecificAgent;
+  
+  // Agent chat history
+  agentMessages: AgentMessage[];
+  
+  // Documents attached to task
+  documents: TaskDocument[];
+  
+  // Task history
+  history: TaskHistoryEntry[];
   
   // Comments count
   commentsCount: number;
@@ -65,6 +136,9 @@ export interface Task {
     name: string;
     avatar?: string;
   };
+  
+  // Owner (for access control)
+  ownerId: string;
   
   // Tags
   tags: string[];
@@ -109,6 +183,14 @@ export interface TaskInterviewData {
   description?: string;
   dueDate?: Date;
   estimatedMinutes?: number;
+}
+
+// AI Rename suggestion
+export interface TaskRenameSuggestion {
+  originalTitle: string;
+  suggestedTitle: string;
+  reason: string;
+  confidence: number; // 0-1
 }
 
 // Status Configuration
@@ -191,6 +273,73 @@ export const PRIORITY_CONFIG: Record<ImportanceLevel, { label: string; color: st
     dotColor: 'bg-slate-400'
   }
 };
+
+// Vague title patterns that should trigger AI renaming
+export const VAGUE_TITLE_PATTERNS = [
+  /^(do|doing)\s+(stuff|things?|it|this|that)$/i,
+  /^(meeting|call|sync)$/i,
+  /^(thing|task|todo|item)s?$/i,
+  /^(work|project)$/i,
+  /^(check|review|look)$/i,
+  /^(email|message)s?$/i,
+  /^(fix|update|change)$/i,
+  /^.{1,3}$/, // Very short titles (1-3 chars)
+  /^(asap|urgent|important)$/i,
+  /^(misc|other|etc)\.?$/i,
+];
+
+// Generate dynamic agent name based on task
+export function generateAgentName(taskTitle: string): string {
+  const keywords = taskTitle.toLowerCase();
+  
+  if (keywords.includes('research') || keywords.includes('find') || keywords.includes('search')) {
+    return 'ResearchBot';
+  }
+  if (keywords.includes('write') || keywords.includes('draft') || keywords.includes('content')) {
+    return 'DraftBot';
+  }
+  if (keywords.includes('design') || keywords.includes('ui') || keywords.includes('visual')) {
+    return 'DesignBot';
+  }
+  if (keywords.includes('code') || keywords.includes('develop') || keywords.includes('build') || keywords.includes('fix')) {
+    return 'CodeBot';
+  }
+  if (keywords.includes('plan') || keywords.includes('schedule') || keywords.includes('organize')) {
+    return 'PlanBot';
+  }
+  if (keywords.includes('review') || keywords.includes('check') || keywords.includes('analyze')) {
+    return 'AnalyzeBot';
+  }
+  if (keywords.includes('meet') || keywords.includes('call') || keywords.includes('discuss')) {
+    return 'MeetBot';
+  }
+  if (keywords.includes('email') || keywords.includes('send') || keywords.includes('contact')) {
+    return 'CommBot';
+  }
+  
+  // Default: use first significant word
+  const words = taskTitle.split(' ').filter(w => w.length > 3);
+  if (words.length > 0) {
+    const word = words[0].charAt(0).toUpperCase() + words[0].slice(1).toLowerCase();
+    return `${word}Bot`;
+  }
+  
+  return 'TaskBot';
+}
+
+// Generate agent avatar/icon based on type
+export function getAgentIcon(agentName: string): string {
+  const name = agentName.toLowerCase();
+  if (name.includes('research')) return '🔍';
+  if (name.includes('draft') || name.includes('write')) return '✍️';
+  if (name.includes('design')) return '🎨';
+  if (name.includes('code')) return '💻';
+  if (name.includes('plan')) return '📋';
+  if (name.includes('analyze') || name.includes('review')) return '📊';
+  if (name.includes('meet')) return '👥';
+  if (name.includes('comm')) return '📧';
+  return '🤖';
+}
 
 // Default Agents
 export const DEFAULT_AGENTS: TaskAgent[] = [
