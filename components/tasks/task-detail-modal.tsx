@@ -76,20 +76,34 @@ export function TaskDetailModal({
   const [chatInput, setChatInput] = React.useState('');
   const [isAgentTyping, setIsAgentTyping] = React.useState(false);
   const [isUploading, setIsUploading] = React.useState(false);
+  const [processingDocId, setProcessingDocId] = React.useState<string | null>(null);
   const messagesEndRef = React.useRef<HTMLDivElement>(null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const previousTaskIdRef = React.useRef<string | null>(null);
 
-  // Reset tab when task changes
+  // BUG FIX: Only reset tab when a DIFFERENT task is opened (not on task updates)
+  // This fixes the issue where Agent Chat redirects to Overview after sending a message
+  const taskId = task?.id;
   React.useEffect(() => {
-    if (task) {
+    if (taskId && taskId !== previousTaskIdRef.current) {
       setActiveTab('overview');
+      previousTaskIdRef.current = taskId;
     }
-  }, [task]);
+  }, [taskId]);
 
-  // Scroll to bottom of chat
+  // Reset previous task id when modal closes
   React.useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [task?.agentMessages]);
+    if (!open) {
+      previousTaskIdRef.current = null;
+    }
+  }, [open]);
+
+  // Scroll to bottom of chat only when on agent tab
+  React.useEffect(() => {
+    if (activeTab === 'agent') {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [task?.agentMessages, activeTab]);
 
   if (!task) return null;
 
@@ -111,20 +125,77 @@ export function TaskDetailModal({
     const updatedMessages = [...(task.agentMessages || []), userMessage];
     const taskAgent = createTaskSpecificAgent({ ...task, agentMessages: updatedMessages });
 
+    // Update task with user message immediately
     onTaskUpdate({
       ...task,
       agentMessages: updatedMessages,
       taskAgent,
     });
 
+    const userInput = chatInput;
     setChatInput('');
     setIsAgentTyping(true);
 
-    // Simulate agent response
-    setTimeout(() => {
+    try {
+      // Call the AI agent API for better responses
+      const response = await fetch('/api/tasks/agent-chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: userInput,
+          taskContext: {
+            id: task.id,
+            title: task.title,
+            description: task.description,
+            deadlineType: task.deadlineType,
+            importanceLevel: task.importanceLevel,
+            energyRequired: task.energyRequired,
+            nextStep: task.nextStep,
+            status: task.status,
+            dueDate: task.dueDate ? new Date(task.dueDate).toISOString() : undefined,
+            estimatedMinutes: task.estimatedMinutes,
+            subSteps: task.subSteps,
+            documents: task.documents?.map(d => ({
+              name: d.name,
+              summary: d.summary,
+              extractedInsights: d.extractedInsights,
+            })),
+          },
+          conversationHistory: updatedMessages.slice(-10).map(m => ({
+            role: m.role,
+            content: m.content,
+          })),
+          agentName,
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const agentResponse: AgentMessage = {
+          id: data.response.id,
+          role: 'assistant',
+          content: data.response.content,
+          timestamp: new Date(data.response.timestamp),
+          suggestions: data.response.suggestions,
+        };
+
+        onTaskUpdate({
+          ...task,
+          agentMessages: [...updatedMessages, agentResponse],
+          taskAgent,
+          history: [
+            ...(task.history || []),
+            createHistoryEntry('agent_message', `Agent responded to user query`),
+          ],
+        });
+      } else {
+        throw new Error('API error');
+      }
+    } catch {
+      // Fallback to local response generation
       const agentResponse = generateAgentResponse(
         { ...task, agentMessages: updatedMessages },
-        chatInput,
+        userInput,
         taskAgent
       );
 
@@ -137,9 +208,9 @@ export function TaskDetailModal({
           createHistoryEntry('agent_message', `Agent responded to user query`),
         ],
       });
+    }
 
-      setIsAgentTyping(false);
-    }, 1500);
+    setIsAgentTyping(false);
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -147,12 +218,13 @@ export function TaskDetailModal({
     if (!files || files.length === 0) return;
 
     setIsUploading(true);
-
     const newDocs: TaskDocument[] = [];
 
     for (const file of Array.from(files)) {
+      const docId = `doc-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      
       const doc: TaskDocument = {
-        id: `doc-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        id: docId,
         name: file.name,
         type: file.name.split('.').pop() || 'unknown',
         size: file.size,
@@ -161,9 +233,39 @@ export function TaskDetailModal({
         isProcessed: false,
       };
 
-      // Simulate AI processing
-      const processedDoc = processDocument(doc);
-      newDocs.push(processedDoc);
+      newDocs.push(doc);
+      setProcessingDocId(docId);
+
+      // Use AI API to analyze document
+      try {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('taskContext', task.title);
+
+        const response = await fetch('/api/tasks/analyze-document', {
+          method: 'POST',
+          body: formData,
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          doc.summary = data.analysis.summary;
+          doc.extractedInsights = data.analysis.extractedInsights;
+          doc.isProcessed = true;
+        } else {
+          // Fallback
+          const processedDoc = processDocument(doc);
+          doc.summary = processedDoc.summary;
+          doc.extractedInsights = processedDoc.extractedInsights;
+          doc.isProcessed = true;
+        }
+      } catch {
+        // Fallback to local processing
+        const processedDoc = processDocument(doc);
+        doc.summary = processedDoc.summary;
+        doc.extractedInsights = processedDoc.extractedInsights;
+        doc.isProcessed = true;
+      }
     }
 
     // Update task with new documents
@@ -179,6 +281,7 @@ export function TaskDetailModal({
     });
 
     setIsUploading(false);
+    setProcessingDocId(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
