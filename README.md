@@ -1,3 +1,4 @@
+![CodeRabbit Pull Request Reviews](https://img.shields.io/coderabbit/prs/github/Open-Quartz/quartz?utm_source=oss&utm_medium=github&utm_campaign=Open-Quartz%2Fquartz&labelColor=171717&color=FF570A&link=https%3A%2F%2Fcoderabbit.ai&label=CodeRabbit+Reviews)
 <div align="center">
 
 # Quartz
