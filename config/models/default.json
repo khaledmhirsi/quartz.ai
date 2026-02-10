@@ -4,38 +4,38 @@
     "byMode": {
       "quick": {
         "speed": {
-          "id": "gemini-3-flash-preview",
-          "name": "Gemini 3 Flash",
-          "provider": "Google",
-          "providerId": "google"
+          "id": "gpt-5-mini",
+          "name": "GPT-5 Mini",
+          "provider": "OpenAI",
+          "providerId": "openai"
         },
         "quality": {
-          "id": "gemini-3-pro-preview",
-          "name": "Gemini 3 Pro",
-          "provider": "Google",
-          "providerId": "google"
+          "id": "gpt-5",
+          "name": "GPT-5",
+          "provider": "OpenAI",
+          "providerId": "openai"
         }
       },
       "adaptive": {
         "speed": {
-          "id": "gemini-3-flash-preview",
-          "name": "Gemini 3 Flash",
-          "provider": "Google",
-          "providerId": "google"
+          "id": "gpt-5-mini",
+          "name": "GPT-5 Mini",
+          "provider": "OpenAI",
+          "providerId": "openai"
         },
         "quality": {
-          "id": "gemini-3-pro-preview",
-          "name": "Gemini 3 Pro",
-          "provider": "Google",
-          "providerId": "google"
+          "id": "gpt-5",
+          "name": "GPT-5",
+          "provider": "OpenAI",
+          "providerId": "openai"
         }
       }
     },
     "relatedQuestions": {
-      "id": "gemini-3-flash-preview",
-      "name": "Gemini 3 Flash",
-      "provider": "Google",
-      "providerId": "google"
+      "id": "gpt-5-mini",
+      "name": "GPT-5 Mini",
+      "provider": "OpenAI",
+      "providerId": "openai"
     }
   }
 }

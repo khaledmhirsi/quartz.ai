@@ -7,10 +7,10 @@ import { SearchMode } from '@/lib/types/search'
 import { isProviderEnabled } from '@/lib/utils/registry'
 
 const DEFAULT_MODEL: Model = {
-  id: 'gemini-3-flash-preview',
-  name: 'Gemini 3 Flash',
-  provider: 'Google',
-  providerId: 'google'
+  id: 'gpt-5',
+  name: 'GPT-5',
+  provider: 'OpenAI',
+  providerId: 'openai'
 }
 
 const VALID_MODEL_TYPES: ModelType[] = ['speed', 'quality']
