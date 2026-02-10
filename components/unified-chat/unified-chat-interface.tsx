@@ -365,26 +365,124 @@ What would you like to work on today?`,
         }
 
         if (targetTask) {
+          // Switch to the task's Sub-Agent
           setActiveTaskId(targetTask.id);
-          const roleConfig = AGENT_ROLE_CONFIGS[targetTask.agent.role];
-          addAssistantMessage(
-            `✅ **Switched to: ${targetTask.title}**\n\n${targetTask.agent.avatar} ${targetTask.agent.name} here! ${roleConfig.personalityTraits[0].charAt(0).toUpperCase() + roleConfig.personalityTraits[0].slice(1)} and ready to help.\n\n${targetTask.description ? `**Context:** ${targetTask.description}\n\n` : ''}What would you like to work on?`,
-            {
-              suggestions: ['What should I do first?', 'Show my progress', 'Break this into steps'],
-              agentName: targetTask.agent.name,
-              agentAvatar: targetTask.agent.avatar,
+          
+          // Build comprehensive context summary for seamless handoff
+          const agent = targetTask.agent;
+          const roleConfig = AGENT_ROLE_CONFIGS[agent.role];
+          
+          // Calculate context details
+          const docCount = agent.documents.length;
+          const docNames = agent.documents.map(d => d.name).slice(0, 3);
+          const subtaskCount = agent.state.subtasks.length;
+          const completedSubtasks = agent.state.subtasks.filter(s => s.status === 'completed').length;
+          const pendingSubtasks = agent.state.subtasks.filter(s => s.status === 'pending');
+          const messageCount = agent.interactionHistory.filter(m => m.role === 'user').length;
+          
+          // Build the handoff message
+          let handoffMessage = `Alright — I'll direct you to the agent created for your task: **${targetTask.title}**.\n\n`;
+          handoffMessage += `${agent.avatar} **${agent.name}** here! `;
+          
+          // Add personality
+          handoffMessage += `${roleConfig.personalityTraits[0].charAt(0).toUpperCase() + roleConfig.personalityTraits[0].slice(1)} and ready to continue where we left off.\n\n`;
+          
+          // Context summary
+          if (targetTask.description) {
+            handoffMessage += `**Task:** ${targetTask.description}\n\n`;
+          }
+          
+          // Memory summary - show what the agent remembers
+          const memorySections: string[] = [];
+          
+          if (docCount > 0) {
+            const docText = docCount === 1 
+              ? `📄 I have **${docNames[0]}** loaded` 
+              : `📄 I have **${docCount} documents** loaded (${docNames.join(', ')}${docCount > 3 ? '...' : ''})`;
+            memorySections.push(docText);
+          }
+          
+          if (subtaskCount > 0) {
+            const subtaskText = `✅ Progress: **${completedSubtasks}/${subtaskCount}** subtasks completed`;
+            memorySections.push(subtaskText);
+            if (pendingSubtasks.length > 0) {
+              memorySections.push(`📋 Next up: "${pendingSubtasks[0].title}"`);
             }
-          );
+          }
+          
+          if (messageCount > 0) {
+            memorySections.push(`💬 I remember our ${messageCount} previous exchange${messageCount > 1 ? 's' : ''}`);
+          }
+          
+          if (memorySections.length > 0) {
+            handoffMessage += `**What I remember:**\n${memorySections.join('\n')}\n\n`;
+          }
+          
+          // Priority and deadline context
+          const contextInfo: string[] = [];
+          if (targetTask.priority === 'critical' || targetTask.priority === 'high') {
+            contextInfo.push(`🔴 ${targetTask.priority.toUpperCase()} priority`);
+          }
+          if (targetTask.deadlineType === 'urgent') {
+            contextInfo.push(`⏰ Urgent deadline`);
+          }
+          if (targetTask.dueDate) {
+            contextInfo.push(`📅 Due: ${targetTask.dueDate.toLocaleDateString()}`);
+          }
+          if (contextInfo.length > 0) {
+            handoffMessage += contextInfo.join(' • ') + '\n\n';
+          }
+          
+          handoffMessage += `Let's get started! What would you like to work on?`;
+          
+          // Generate smart suggestions based on task state
+          const suggestions: string[] = [];
+          if (pendingSubtasks.length > 0) {
+            suggestions.push(`Continue with "${pendingSubtasks[0].title}"`);
+          }
+          if (docCount > 0) {
+            suggestions.push('Summarize my documents');
+          }
+          if (subtaskCount === 0) {
+            suggestions.push('Break this into steps');
+          }
+          suggestions.push('What should I do next?');
+          
+          addAssistantMessage(handoffMessage, {
+            suggestions: suggestions.slice(0, 3),
+            agentName: agent.name,
+            agentAvatar: agent.avatar,
+          });
+          
+          // Update last active timestamp
+          agent.state.lastActiveAt = new Date();
+          setTasks(prev => prev.map(t => 
+            t.id === targetTask!.id ? { ...t, agent: { ...agent }, unreadCount: 0 } : t
+          ));
+          
           return true;
         } else {
-          addAssistantMessage(
-            `I couldn't find that task. ${tasks.length > 0 ? `You have ${tasks.length} task${tasks.length > 1 ? 's' : ''}. Say "show my tasks" to see them.` : 'You don\'t have any tasks yet. Want to create one?'}`,
-            {
-              suggestions: tasks.length > 0 ? ['Show my tasks', 'Create new task'] : ['Create a new task'],
-              agentName: 'Quartz',
-              agentAvatar: '✨',
-            }
-          );
+          // Couldn't find the task - be helpful
+          let notFoundMessage = `I couldn't find that task. `;
+          
+          if (tasks.length > 0) {
+            const activeTasks = tasks.filter(t => t.status === 'active');
+            notFoundMessage += `Here's what you have:\n\n`;
+            activeTasks.slice(0, 5).forEach((t, idx) => {
+              notFoundMessage += `${idx + 1}. ${t.agent.avatar} **${t.title}** (${t.agent.name})\n`;
+            });
+            notFoundMessage += `\nJust say "task 1" or the task name to switch.`;
+          } else {
+            notFoundMessage += `You don't have any tasks yet. Want to create one?`;
+          }
+          
+          addAssistantMessage(notFoundMessage, {
+            suggestions: tasks.length > 0 
+              ? ['Work on task 1', 'Show all tasks', 'Create new task'] 
+              : ['Create a new task'],
+            agentName: 'Quartz',
+            agentAvatar: '✨',
+          });
           return true;
         }
       }
@@ -392,7 +490,7 @@ What would you like to work on today?`,
       case 'create_task': {
         const { taskTitle, priority, deadlineType } = parsed.parameters;
         if (taskTitle) {
-          // Create the task directly
+          // Create the task with a dedicated Sub-Agent
           const newTask = createSubAgentTask(taskTitle, {
             priority: priority || 'medium',
             deadlineType: deadlineType || 'flexible',
@@ -402,14 +500,31 @@ What would you like to work on today?`,
           setActiveTaskId(newTask.id);
           
           const roleConfig = AGENT_ROLE_CONFIGS[newTask.agent.role];
-          addAssistantMessage(
-            `✅ **Task Created: ${newTask.title}**\n\n${newTask.agent.avatar} Hi! I'm ${newTask.agent.name}, your ${roleConfig.name} for this task.\n\n${roleConfig.personalityTraits.map(t => t.charAt(0).toUpperCase() + t.slice(1)).join(', ')} - that's my style!\n\nTo get started, tell me:\n- What's the end goal?\n- Any deadline I should know about?\n- How much energy do you have for this?`,
-            {
-              suggestions: ['It\'s urgent', 'No deadline', 'Let\'s just get started'],
-              agentName: newTask.agent.name,
-              agentAvatar: newTask.agent.avatar,
-            }
-          );
+          const taskNumber = tasks.length + 1;
+          
+          // Build a warm introduction from the new Sub-Agent
+          let introMessage = `✅ **Task Created: ${newTask.title}**\n\n`;
+          introMessage += `I've created a dedicated Sub-Agent for this task.\n\n`;
+          introMessage += `---\n\n`;
+          introMessage += `${newTask.agent.avatar} **${newTask.agent.name}** at your service!\n\n`;
+          introMessage += `I'm your specialized ${roleConfig.name.toLowerCase()} for "${newTask.title}". `;
+          introMessage += `${roleConfig.personalityTraits.map(t => t.charAt(0).toUpperCase() + t.slice(1)).join(', ')} — that's how I work.\n\n`;
+          introMessage += `**My capabilities:**\n`;
+          roleConfig.defaultCapabilities.slice(0, 4).forEach(cap => {
+            const capName = cap.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+            introMessage += `• ${capName}\n`;
+          });
+          introMessage += `\n**To get started, tell me:**\n`;
+          introMessage += `• What's the end goal?\n`;
+          introMessage += `• Any deadline I should know about?\n`;
+          introMessage += `• Do you have documents to share?\n\n`;
+          introMessage += `You can always come back to me by saying "work on task ${taskNumber}" or "${newTask.title}". I'll remember everything!`;
+          
+          addAssistantMessage(introMessage, {
+            suggestions: ['It\'s urgent', 'Let\'s break it into steps', 'I have a document to upload'],
+            agentName: newTask.agent.name,
+            agentAvatar: newTask.agent.avatar,
+          });
           return true;
         }
         return false; // Let API handle if no clear title
@@ -688,14 +803,42 @@ What would you like to work on today?`,
                       onClick={() => {
                         setActiveTaskId(task.id);
                         setShowSidebar(false);
-                        addAssistantMessage(
-                          `Switched to **${task.title}**. ${task.agent.name} is ready to help!`,
-                          {
-                            suggestions: ['What should I do next?', 'Show progress'],
-                            agentName: task.agent.name,
-                            agentAvatar: task.agent.avatar,
-                          }
-                        );
+                        
+                        // Build comprehensive handoff message
+                        const agent = task.agent;
+                        const docCount = agent.documents.length;
+                        const subtaskCount = agent.state.subtasks.length;
+                        const completedSubtasks = agent.state.subtasks.filter(s => s.status === 'completed').length;
+                        const pendingSubtasks = agent.state.subtasks.filter(s => s.status === 'pending');
+                        
+                        let handoffMsg = `Alright — switching to your task: **${task.title}**.\n\n`;
+                        handoffMsg += `${agent.avatar} **${agent.name}** here, ready to continue!\n\n`;
+                        
+                        const context: string[] = [];
+                        if (docCount > 0) context.push(`📄 ${docCount} document${docCount > 1 ? 's' : ''} loaded`);
+                        if (subtaskCount > 0) context.push(`✅ ${completedSubtasks}/${subtaskCount} steps done`);
+                        if (context.length > 0) {
+                          handoffMsg += context.join(' • ') + '\n\n';
+                        }
+                        
+                        handoffMsg += `What would you like to work on?`;
+                        
+                        const suggestions: string[] = [];
+                        if (pendingSubtasks.length > 0) suggestions.push(`Continue: ${pendingSubtasks[0].title.substring(0, 25)}`);
+                        suggestions.push('What should I do next?');
+                        if (docCount > 0) suggestions.push('Review documents');
+                        
+                        addAssistantMessage(handoffMsg, {
+                          suggestions: suggestions.slice(0, 3),
+                          agentName: agent.name,
+                          agentAvatar: agent.avatar,
+                        });
+                        
+                        // Update last active
+                        agent.state.lastActiveAt = new Date();
+                        setTasks(prev => prev.map(t => 
+                          t.id === task.id ? { ...t, agent: { ...agent }, unreadCount: 0 } : t
+                        ));
                       }}
                       className={cn(
                         "flex w-full items-center gap-3 rounded-lg p-3 text-left transition-colors hover:bg-muted",

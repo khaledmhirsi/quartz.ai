@@ -48,11 +48,13 @@ const COMMAND_PATTERNS: Array<{
   {
     type: 'switch_task',
     patterns: [
-      /(?:show|open|switch to|go to|work on|continue|let'?s? (?:work on|continue)|back to)\s+(?:task\s*)?(?:#?\s*)?(\d+)/i,
-      /(?:show|open|switch to|go to|work on|continue|let'?s? (?:work on|continue)|back to)\s+(?:the\s+)?(.+?)\s*(?:task)?$/i,
-      /task\s*(?:#?\s*)?(\d+)/i,
+      /(?:show|open|switch to|go to|work on|continue|let'?s? (?:work on|continue|do)|back to|i'?ll? do|i want to (?:do|work on)|focus on|start|resume)\s+(?:task\s*)?(?:#?\s*)?(\d+)/i,
+      /(?:show|open|switch to|go to|work on|continue|let'?s? (?:work on|continue|do)|back to|i'?ll? do|i want to (?:do|work on)|focus on|start|resume)\s+(?:the\s+)?(.+?)\s*(?:task|now)?$/i,
+      /task\s*(?:#?\s*)?(\d+)(?:\s+now)?/i,
+      /(?:let'?s?\s+)?(?:continue|resume)\s+(?:with\s+)?(?:the\s+)?(.+)/i,
+      /(?:take me to|bring up|load)\s+(?:the\s+)?(?:task\s*)?(.+)/i,
     ],
-    keywords: ['show', 'open', 'switch', 'continue', 'work on', 'go to', 'back to'],
+    keywords: ['show', 'open', 'switch', 'continue', 'work on', 'go to', 'back to', "i'll do", 'focus on', 'start', 'resume', 'take me to', 'bring up', 'load', 'now'],
     priority: 10,
   },
   {
