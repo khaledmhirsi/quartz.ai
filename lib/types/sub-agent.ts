@@ -1,352 +1,501 @@
-// Sub-Agent Types for Chat-First Task Execution System
+// Sub-Agent System Types for Chat-First Task Management
 
 export type AgentRole = 
-  | 'research'      // Research, data gathering, source finding
-  | 'writing'       // Content creation, drafts, editing
-  | 'email'         // Email drafting, outreach, follow-ups
-  | 'lecture'       // Teaching, explanations, Q&A
-  | 'coding'        // Code generation, debugging, architecture
-  | 'planning'      // Task breakdown, scheduling, organization
-  | 'design'        // Design feedback, UI/UX suggestions
-  | 'analysis'      // Data analysis, document parsing
-  | 'general';      // General purpose assistant
+  | 'research' 
+  | 'writing' 
+  | 'coding' 
+  | 'design' 
+  | 'planning' 
+  | 'email' 
+  | 'lecture' 
+  | 'analysis'
+  | 'general';
 
 export type AgentCapability = 
   | 'summarize_documents'
   | 'extract_questions'
-  | 'answer_from_docs'
-  | 'generate_outline'
+  | 'answer_questions'
   | 'draft_email'
+  | 'generate_outline'
   | 'generate_code'
-  | 'create_slides'
-  | 'break_into_steps'
+  | 'create_subtasks'
   | 'track_progress'
-  | 'suggest_next_move'
-  | 'quiz_user'
-  | 'explain_concept'
-  | 'format_content'
-  | 'research_web';
+  | 'generate_lecture'
+  | 'analyze_data'
+  | 'research_topic'
+  | 'write_draft'
+  | 'review_content'
+  | 'schedule_planning';
 
-export interface SubAgentMessage {
-  id: string;
-  role: 'user' | 'assistant' | 'system';
-  content: string;
-  timestamp: Date;
-  attachments?: AgentAttachment[];
-  toolUsed?: string;
-  suggestions?: string[];
-  isThinking?: boolean;
-}
-
-export interface AgentAttachment {
-  id: string;
-  type: 'document' | 'image' | 'code' | 'link' | 'email_draft';
-  name: string;
-  content?: string;
-  url?: string;
-  metadata?: Record<string, unknown>;
-}
-
-export interface SubAgentContext {
-  taskId: string;
-  taskTitle: string;
-  taskDescription?: string;
-  deadline?: Date;
-  deadlineType: 'urgent' | 'flexible' | 'none';
-  priority: 'critical' | 'high' | 'medium' | 'low';
-  energyRequired: 'high' | 'medium' | 'low';
-  documents: DocumentContext[];
-  interactionHistory: SubAgentMessage[];
-  sessionState: Record<string, unknown>;
-  createdAt: Date;
-  lastActiveAt: Date;
-}
-
-export interface DocumentContext {
+export interface SubAgentDocument {
   id: string;
   name: string;
   type: string;
+  size: number;
+  content?: string; // Extracted text content
   summary?: string;
-  extractedContent?: string;
+  extractedQuestions?: string[];
   keyInsights?: string[];
-  questions?: string[];
   uploadedAt: Date;
+  isProcessed: boolean;
+}
+
+export interface AgentInteraction {
+  id: string;
+  role: 'user' | 'agent';
+  content: string;
+  timestamp: Date;
+  actionType?: AgentActionType;
+  actionData?: Record<string, unknown>;
+  suggestions?: string[];
+  attachments?: string[];
+}
+
+export type AgentActionType = 
+  | 'message'
+  | 'document_upload'
+  | 'document_analysis'
+  | 'subtask_created'
+  | 'email_drafted'
+  | 'outline_generated'
+  | 'code_generated'
+  | 'progress_update'
+  | 'task_completed'
+  | 'clarification_request';
+
+export interface SubAgentState {
+  currentPhase: 'onboarding' | 'working' | 'reviewing' | 'completed';
+  progress: number; // 0-100
+  subtasks: AgentSubtask[];
+  drafts: AgentDraft[];
+  sessionNotes: string[];
+  lastActiveAt: Date;
+}
+
+export interface AgentSubtask {
+  id: string;
+  title: string;
+  status: 'pending' | 'in_progress' | 'completed';
+  createdAt: Date;
+  completedAt?: Date;
+}
+
+export interface AgentDraft {
+  id: string;
+  type: 'email' | 'document' | 'outline' | 'code' | 'lecture';
+  title: string;
+  content: string;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface SubAgent {
   id: string;
   taskId: string;
+  
+  // Identity
   name: string;
   role: AgentRole;
-  avatar: string;
   personality: string;
+  avatar: string;
+  
+  // Context
+  taskContext: {
+    title: string;
+    description?: string;
+    deadline?: Date;
+    deadlineType: string;
+    priority: string;
+    energyLevel: string;
+    category?: string;
+  };
+  
+  // Capabilities
   capabilities: AgentCapability[];
+  toolset: string[];
+  
+  // Memory
+  documents: SubAgentDocument[];
+  interactionHistory: AgentInteraction[];
+  state: SubAgentState;
+  
+  // System
   systemPrompt: string;
-  context: SubAgentContext;
-  isActive: boolean;
   createdAt: Date;
-  lastActiveAt: Date;
+  updatedAt: Date;
 }
 
-export interface AgentToolResult {
-  tool: string;
-  success: boolean;
-  result?: unknown;
-  error?: string;
-  displayContent?: string;
+export interface SubAgentTask {
+  id: string;
+  title: string;
+  description?: string;
+  
+  // Smart Interview Data
+  deadlineType: 'urgent' | 'flexible' | 'none';
+  priority: 'critical' | 'high' | 'medium' | 'low';
+  energyRequired: 'high' | 'medium' | 'low';
+  
+  // Dates
+  dueDate?: Date;
+  createdAt: Date;
+  updatedAt: Date;
+  completedAt?: Date;
+  
+  // Status
+  status: 'active' | 'paused' | 'completed' | 'archived';
+  
+  // Agent
+  agent: SubAgent;
+  
+  // Quick access
+  lastMessage?: string;
+  unreadCount: number;
 }
 
-// Agent role configurations with personalities and capabilities
-export const AGENT_ROLE_CONFIG: Record<AgentRole, {
+// Agent Role Configuration
+export interface AgentRoleConfig {
+  role: AgentRole;
   name: string;
-  avatar: string;
-  personality: string;
-  capabilities: AgentCapability[];
-  keywords: string[];
-}> = {
+  icon: string;
+  color: string;
+  defaultCapabilities: AgentCapability[];
+  personalityTraits: string[];
+  systemPromptTemplate: string;
+}
+
+// Agent Role Configurations
+export const AGENT_ROLE_CONFIGS: Record<AgentRole, AgentRoleConfig> = {
   research: {
+    role: 'research',
     name: 'ResearchBot',
-    avatar: '🔍',
-    personality: 'Curious, thorough, and analytical. I love diving deep into topics and finding reliable sources.',
-    capabilities: ['summarize_documents', 'extract_questions', 'answer_from_docs', 'research_web', 'generate_outline'],
-    keywords: ['research', 'find', 'search', 'investigate', 'study', 'analyze', 'sources', 'papers', 'articles']
+    icon: '🔍',
+    color: 'blue',
+    defaultCapabilities: ['research_topic', 'summarize_documents', 'extract_questions', 'answer_questions', 'generate_outline'],
+    personalityTraits: ['curious', 'thorough', 'analytical'],
+    systemPromptTemplate: `You are {agentName}, a dedicated research assistant helping with "{taskTitle}".
+
+Your personality: Curious, thorough, and analytical. You love diving deep into topics and finding connections.
+
+Your capabilities:
+- Research and gather information on any topic
+- Analyze and summarize documents
+- Extract key questions and insights
+- Create comprehensive outlines
+- Answer questions based on gathered research
+
+Task Context:
+{taskContext}
+
+Guidelines:
+1. Always cite sources when possible
+2. Ask clarifying questions to narrow down research scope
+3. Provide structured summaries with key takeaways
+4. Suggest related topics worth exploring
+5. Break down complex topics into digestible parts
+
+After each response, suggest 2-3 logical next steps the user might want to take.`
   },
+  
   writing: {
+    role: 'writing',
     name: 'DraftBot',
-    avatar: '✍️',
-    personality: 'Creative, articulate, and detail-oriented. I help you express ideas clearly and compellingly.',
-    capabilities: ['generate_outline', 'format_content', 'summarize_documents', 'suggest_next_move', 'break_into_steps'],
-    keywords: ['write', 'draft', 'content', 'article', 'blog', 'copy', 'edit', 'proofread', 'document']
+    icon: '✍️',
+    color: 'purple',
+    defaultCapabilities: ['write_draft', 'generate_outline', 'review_content', 'summarize_documents'],
+    personalityTraits: ['creative', 'articulate', 'supportive'],
+    systemPromptTemplate: `You are {agentName}, a skilled writing assistant helping with "{taskTitle}".
+
+Your personality: Creative, articulate, and supportive. You help turn ideas into polished prose.
+
+Your capabilities:
+- Write drafts for any type of content
+- Create detailed outlines and structures
+- Edit and improve existing writing
+- Adapt tone and style as needed
+- Generate creative ideas and angles
+
+Task Context:
+{taskContext}
+
+Guidelines:
+1. Start by understanding the audience and purpose
+2. Offer multiple approaches when drafting
+3. Provide constructive feedback on writing
+4. Help overcome writer's block with prompts
+5. Maintain consistent voice throughout
+
+After each response, offer to expand, revise, or move to the next section.`
   },
-  email: {
-    name: 'OutreachAgent',
-    avatar: '📧',
-    personality: 'Professional, persuasive, and efficient. I craft messages that get responses.',
-    capabilities: ['draft_email', 'format_content', 'suggest_next_move', 'track_progress'],
-    keywords: ['email', 'message', 'outreach', 'contact', 'send', 'reply', 'follow-up', 'newsletter']
-  },
-  lecture: {
-    name: 'LectureHelper',
-    avatar: '🎓',
-    personality: 'Patient, encouraging, and educational. I make complex topics accessible and memorable.',
-    capabilities: ['summarize_documents', 'create_slides', 'explain_concept', 'quiz_user', 'answer_from_docs', 'generate_outline'],
-    keywords: ['lecture', 'teach', 'learn', 'study', 'class', 'course', 'presentation', 'explain', 'understand', 'exam']
-  },
+  
   coding: {
+    role: 'coding',
     name: 'CodeBot',
-    avatar: '💻',
-    personality: 'Logical, precise, and helpful. I write clean code and explain technical concepts clearly.',
-    capabilities: ['generate_code', 'explain_concept', 'break_into_steps', 'suggest_next_move', 'format_content'],
-    keywords: ['code', 'program', 'develop', 'build', 'fix', 'debug', 'implement', 'api', 'function', 'script']
+    icon: '💻',
+    color: 'green',
+    defaultCapabilities: ['generate_code', 'review_content', 'create_subtasks', 'answer_questions'],
+    personalityTraits: ['precise', 'logical', 'helpful'],
+    systemPromptTemplate: `You are {agentName}, a coding assistant helping with "{taskTitle}".
+
+Your personality: Precise, logical, and helpful. You write clean code and explain concepts clearly.
+
+Your capabilities:
+- Write code in any language
+- Debug and fix issues
+- Explain code concepts
+- Review and optimize code
+- Break down technical tasks
+
+Task Context:
+{taskContext}
+
+Guidelines:
+1. Always explain your code with comments
+2. Consider edge cases and error handling
+3. Suggest best practices and patterns
+4. Break complex problems into smaller functions
+5. Provide examples when explaining concepts
+
+After each response, offer to test, refactor, or explain further.`
   },
-  planning: {
-    name: 'PlanBot',
-    avatar: '📋',
-    personality: 'Organized, strategic, and motivating. I help you break big goals into achievable steps.',
-    capabilities: ['break_into_steps', 'track_progress', 'suggest_next_move', 'generate_outline'],
-    keywords: ['plan', 'schedule', 'organize', 'timeline', 'deadline', 'project', 'manage', 'goal', 'milestone']
-  },
+  
   design: {
+    role: 'design',
     name: 'DesignBot',
-    avatar: '🎨',
-    personality: 'Creative, aesthetic-focused, and user-centric. I help make things look and feel great.',
-    capabilities: ['suggest_next_move', 'generate_outline', 'break_into_steps', 'format_content'],
-    keywords: ['design', 'ui', 'ux', 'visual', 'layout', 'style', 'color', 'brand', 'interface', 'mockup']
+    icon: '🎨',
+    color: 'pink',
+    defaultCapabilities: ['generate_outline', 'review_content', 'create_subtasks', 'answer_questions'],
+    personalityTraits: ['creative', 'visual', 'user-focused'],
+    systemPromptTemplate: `You are {agentName}, a design assistant helping with "{taskTitle}".
+
+Your personality: Creative, visual-thinking, and user-focused. You see the big picture and the details.
+
+Your capabilities:
+- Create design concepts and descriptions
+- Provide UI/UX recommendations
+- Review and critique designs
+- Generate color schemes and layouts
+- Plan design systems
+
+Task Context:
+{taskContext}
+
+Guidelines:
+1. Always consider the end user
+2. Balance aesthetics with functionality
+3. Provide visual descriptions when possible
+4. Suggest design patterns and references
+5. Think about accessibility
+
+After each response, offer mockup ideas or alternative approaches.`
   },
+  
+  planning: {
+    role: 'planning',
+    name: 'PlanBot',
+    icon: '📋',
+    color: 'orange',
+    defaultCapabilities: ['create_subtasks', 'schedule_planning', 'track_progress', 'generate_outline'],
+    personalityTraits: ['organized', 'strategic', 'motivating'],
+    systemPromptTemplate: `You are {agentName}, a planning assistant helping with "{taskTitle}".
+
+Your personality: Organized, strategic, and motivating. You turn chaos into clear action plans.
+
+Your capabilities:
+- Break down projects into actionable steps
+- Create timelines and schedules
+- Track progress and milestones
+- Prioritize tasks effectively
+- Identify dependencies and blockers
+
+Task Context:
+{taskContext}
+
+Guidelines:
+1. Always start with the end goal in mind
+2. Create realistic timelines with buffers
+3. Identify quick wins for momentum
+4. Flag potential risks early
+5. Celebrate progress along the way
+
+After each response, suggest the immediate next action to take.`
+  },
+  
+  email: {
+    role: 'email',
+    name: 'OutreachAgent',
+    icon: '📧',
+    color: 'teal',
+    defaultCapabilities: ['draft_email', 'write_draft', 'review_content', 'create_subtasks'],
+    personalityTraits: ['professional', 'persuasive', 'concise'],
+    systemPromptTemplate: `You are {agentName}, an email and communication specialist helping with "{taskTitle}".
+
+Your personality: Professional, persuasive, and concise. You craft messages that get responses.
+
+Your capabilities:
+- Draft professional emails
+- Create follow-up sequences
+- Adapt tone for different audiences
+- Write subject lines that get opened
+- Plan outreach campaigns
+
+Task Context:
+{taskContext}
+
+Guidelines:
+1. Keep emails scannable and action-oriented
+2. Personalize when possible
+3. Include clear calls-to-action
+4. Suggest optimal send times
+5. Prepare follow-up templates
+
+After each response, offer to refine the tone or create variations.`
+  },
+  
+  lecture: {
+    role: 'lecture',
+    name: 'LectureHelper',
+    icon: '🎓',
+    color: 'indigo',
+    defaultCapabilities: ['generate_lecture', 'summarize_documents', 'extract_questions', 'answer_questions', 'generate_outline'],
+    personalityTraits: ['educational', 'patient', 'encouraging'],
+    systemPromptTemplate: `You are {agentName}, a teaching assistant helping with "{taskTitle}".
+
+Your personality: Educational, patient, and encouraging. You make learning engaging and accessible.
+
+Your capabilities:
+- Summarize lecture materials
+- Generate presentation outlines
+- Create study questions and quizzes
+- Explain complex concepts simply
+- Help prepare for presentations
+
+Task Context:
+{taskContext}
+
+Guidelines:
+1. Break down complex topics into digestible chunks
+2. Use analogies and examples liberally
+3. Check understanding frequently
+4. Encourage questions and curiosity
+5. Build confidence for presentations
+
+After each response, offer to quiz, explain further, or move to the next topic.`
+  },
+  
   analysis: {
+    role: 'analysis',
     name: 'AnalyzeBot',
-    avatar: '📊',
-    personality: 'Data-driven, insightful, and methodical. I find patterns and extract meaning from information.',
-    capabilities: ['summarize_documents', 'extract_questions', 'answer_from_docs', 'generate_outline', 'explain_concept'],
-    keywords: ['analyze', 'data', 'report', 'metrics', 'chart', 'statistics', 'insights', 'trends', 'review']
+    icon: '📊',
+    color: 'cyan',
+    defaultCapabilities: ['analyze_data', 'summarize_documents', 'extract_questions', 'generate_outline', 'answer_questions'],
+    personalityTraits: ['analytical', 'detail-oriented', 'insightful'],
+    systemPromptTemplate: `You are {agentName}, a data analysis assistant helping with "{taskTitle}".
+
+Your personality: Analytical, detail-oriented, and insightful. You find patterns others miss.
+
+Your capabilities:
+- Analyze documents and data
+- Extract meaningful insights
+- Create visualizations descriptions
+- Compare and contrast information
+- Identify trends and anomalies
+
+Task Context:
+{taskContext}
+
+Guidelines:
+1. Always verify data before drawing conclusions
+2. Present findings clearly with evidence
+3. Highlight actionable insights
+4. Note limitations and assumptions
+5. Suggest follow-up analyses
+
+After each response, offer deeper analysis or related queries.`
   },
+  
   general: {
+    role: 'general',
     name: 'TaskBot',
-    avatar: '🤖',
-    personality: 'Versatile, helpful, and proactive. I adapt to whatever you need and guide you to completion.',
-    capabilities: ['summarize_documents', 'break_into_steps', 'track_progress', 'suggest_next_move', 'answer_from_docs'],
-    keywords: []
+    icon: '🤖',
+    color: 'gray',
+    defaultCapabilities: ['summarize_documents', 'answer_questions', 'create_subtasks', 'track_progress', 'generate_outline'],
+    personalityTraits: ['versatile', 'helpful', 'proactive'],
+    systemPromptTemplate: `You are {agentName}, a versatile assistant helping with "{taskTitle}".
+
+Your personality: Versatile, helpful, and proactive. You adapt to whatever the task needs.
+
+Your capabilities:
+- Help with any type of task
+- Answer questions and provide guidance
+- Break down work into steps
+- Track progress and next actions
+- Provide encouragement and support
+
+Task Context:
+{taskContext}
+
+Guidelines:
+1. Understand the goal before suggesting solutions
+2. Ask clarifying questions when needed
+3. Offer multiple approaches when possible
+4. Keep the user moving forward
+5. Celebrate progress, no matter how small
+
+After each response, suggest the most helpful next step.`
   }
 };
 
-// Determine agent role based on task title and description
+// Helper function to detect agent role from task
 export function detectAgentRole(title: string, description?: string): AgentRole {
   const text = `${title} ${description || ''}`.toLowerCase();
   
-  // Check each role's keywords
-  for (const [role, config] of Object.entries(AGENT_ROLE_CONFIG)) {
-    if (role === 'general') continue;
-    if (config.keywords.some(keyword => text.includes(keyword))) {
-      return role as AgentRole;
-    }
-  }
+  if (text.match(/research|study|find|investigate|explore|learn about/)) return 'research';
+  if (text.match(/write|draft|article|blog|content|copy|essay/)) return 'writing';
+  if (text.match(/code|program|develop|build|fix bug|implement|api/)) return 'coding';
+  if (text.match(/design|ui|ux|mockup|layout|visual|logo/)) return 'design';
+  if (text.match(/plan|schedule|organize|timeline|roadmap|strategy/)) return 'planning';
+  if (text.match(/email|outreach|message|contact|follow.?up|reach out/)) return 'email';
+  if (text.match(/lecture|teach|present|lesson|study|exam|quiz|learn/)) return 'lecture';
+  if (text.match(/analyze|data|report|metrics|dashboard|insights/)) return 'analysis';
   
   return 'general';
 }
 
-// Generate dynamic agent name based on task
-export function generateAgentName(title: string, role: AgentRole): string {
-  const config = AGENT_ROLE_CONFIG[role];
+// Helper to generate agent name
+export function generateSubAgentName(role: AgentRole, taskTitle: string): string {
+  const config = AGENT_ROLE_CONFIGS[role];
+  const words = taskTitle.split(' ').filter(w => w.length > 3);
   
-  // Try to create a custom name from the task title
-  const words = title.split(' ').filter(w => w.length > 3);
-  if (words.length > 0 && role !== 'general') {
+  if (words.length > 0) {
     const keyword = words[0].charAt(0).toUpperCase() + words[0].slice(1).toLowerCase();
-    return `${keyword}Agent`;
+    return `${keyword}${config.name.replace('Bot', 'Agent').replace('Helper', 'Bot')}`;
   }
   
   return config.name;
 }
 
-// Generate system prompt for a sub-agent
-export function generateSystemPrompt(agent: SubAgent): string {
-  const { name, role, personality, context } = agent;
-  const config = AGENT_ROLE_CONFIG[role];
-  
-  const documentContext = context.documents.length > 0
-    ? `\n\nDOCUMENTS AVAILABLE:\n${context.documents.map(d => 
-        `- ${d.name}: ${d.summary || 'No summary yet'}`
-      ).join('\n')}`
-    : '';
-
-  const deadlineInfo = context.deadline 
-    ? `\nDEADLINE: ${context.deadline.toLocaleDateString()} (${context.deadlineType})`
-    : '';
-
-  return `You are ${name}, a specialized AI assistant for the task: "${context.taskTitle}"
-
-PERSONALITY: ${personality}
-
-YOUR ROLE: ${role.toUpperCase()} SPECIALIST
-${context.taskDescription ? `\nTASK DESCRIPTION: ${context.taskDescription}` : ''}
-PRIORITY: ${context.priority}
-ENERGY REQUIRED: ${context.energyRequired}${deadlineInfo}
-${documentContext}
-
-YOUR CAPABILITIES:
-${config.capabilities.map(c => `- ${formatCapability(c)}`).join('\n')}
-
-INTERACTION GUIDELINES:
-1. Be conversational and friendly, but focused on the task
-2. Proactively suggest next steps after each interaction
-3. Ask clarifying questions when needed
-4. Track progress and celebrate small wins
-5. If documents are uploaded, reference them in your responses
-6. Break down complex requests into manageable steps
-7. Offer 2-3 actionable suggestions at the end of each response
-8. Remember context from earlier in the conversation
-9. Be encouraging and motivating
-10. If you can't do something, suggest an alternative approach
-
-RESPONSE FORMAT:
-- Keep responses focused and actionable
-- Use bullet points for lists
-- Highlight important information
-- End with "What would you like to do next?" or a specific suggestion
-- Include [SUGGESTION] tags for quick action buttons
-
-Remember: You are the user's dedicated specialist for this specific task. Make them feel supported and capable!`;
-}
-
-function formatCapability(cap: AgentCapability): string {
-  const labels: Record<AgentCapability, string> = {
-    summarize_documents: 'Summarize uploaded documents',
-    extract_questions: 'Extract key questions from content',
-    answer_from_docs: 'Answer questions based on uploaded files',
-    generate_outline: 'Create outlines and structures',
-    draft_email: 'Draft professional emails',
-    generate_code: 'Write and explain code',
-    create_slides: 'Generate presentation outlines',
-    break_into_steps: 'Break tasks into actionable steps',
-    track_progress: 'Track and report on progress',
-    suggest_next_move: 'Suggest optimal next actions',
-    quiz_user: 'Create quizzes to test understanding',
-    explain_concept: 'Explain complex concepts simply',
-    format_content: 'Format and structure content',
-    research_web: 'Research and find information'
-  };
-  return labels[cap] || cap;
-}
-
-// Create a new sub-agent for a task
-export function createSubAgent(
-  taskId: string,
+// Helper to build system prompt
+export function buildSystemPrompt(
+  role: AgentRole,
+  agentName: string,
   taskTitle: string,
-  taskDescription?: string,
-  options?: {
-    deadline?: Date;
-    deadlineType?: 'urgent' | 'flexible' | 'none';
-    priority?: 'critical' | 'high' | 'medium' | 'low';
-    energyRequired?: 'high' | 'medium' | 'low';
-    documents?: DocumentContext[];
-  }
-): SubAgent {
-  const role = detectAgentRole(taskTitle, taskDescription);
-  const config = AGENT_ROLE_CONFIG[role];
-  const name = generateAgentName(taskTitle, role);
+  taskContext: SubAgent['taskContext'],
+  documents: SubAgentDocument[]
+): string {
+  const config = AGENT_ROLE_CONFIGS[role];
   
-  const context: SubAgentContext = {
-    taskId,
-    taskTitle,
-    taskDescription,
-    deadline: options?.deadline,
-    deadlineType: options?.deadlineType || 'none',
-    priority: options?.priority || 'medium',
-    energyRequired: options?.energyRequired || 'medium',
-    documents: options?.documents || [],
-    interactionHistory: [],
-    sessionState: {},
-    createdAt: new Date(),
-    lastActiveAt: new Date()
-  };
+  const contextStr = `
+Title: ${taskContext.title}
+${taskContext.description ? `Description: ${taskContext.description}` : ''}
+Priority: ${taskContext.priority}
+Deadline: ${taskContext.deadlineType}${taskContext.deadline ? ` (Due: ${new Date(taskContext.deadline).toLocaleDateString()})` : ''}
+Energy Required: ${taskContext.energyLevel}
+${taskContext.category ? `Category: ${taskContext.category}` : ''}
+${documents.length > 0 ? `\nUploaded Documents:\n${documents.map(d => `- ${d.name}${d.summary ? `: ${d.summary}` : ''}`).join('\n')}` : ''}
+`.trim();
 
-  const agent: SubAgent = {
-    id: `agent-${taskId}`,
-    taskId,
-    name,
-    role,
-    avatar: config.avatar,
-    personality: config.personality,
-    capabilities: config.capabilities,
-    systemPrompt: '', // Will be generated
-    context,
-    isActive: true,
-    createdAt: new Date(),
-    lastActiveAt: new Date()
-  };
-
-  // Generate system prompt with full context
-  agent.systemPrompt = generateSystemPrompt(agent);
-
-  return agent;
-}
-
-// Agent memory for quick switching (stores up to 5 recent agents)
-export interface AgentMemory {
-  recentAgents: SubAgent[];
-  activeAgentId: string | null;
-  lastSwitchedAt: Date | null;
-}
-
-export function createAgentMemory(): AgentMemory {
-  return {
-    recentAgents: [],
-    activeAgentId: null,
-    lastSwitchedAt: null
-  };
-}
-
-export function addToAgentMemory(memory: AgentMemory, agent: SubAgent): AgentMemory {
-  // Remove if already exists
-  const filtered = memory.recentAgents.filter(a => a.id !== agent.id);
-  
-  // Add to front
-  const updated = [agent, ...filtered].slice(0, 5);
-  
-  return {
-    ...memory,
-    recentAgents: updated,
-    activeAgentId: agent.id,
-    lastSwitchedAt: new Date()
-  };
+  return config.systemPromptTemplate
+    .replace('{agentName}', agentName)
+    .replace('{taskTitle}', taskTitle)
+    .replace('{taskContext}', contextStr);
 }
